@@ -1,6 +1,8 @@
 
 # redux-storyline
 
+THIS IS A WORK IN PROGRESS AND IS STILL YUCKY AND HORRIBLE DO NOT USE.
+
 `redux-storyline` is a library to make implementing side effects simpler and
 testable.
 
