@@ -36,14 +36,14 @@ class StorylineAPI {
   }
 
   _blocked() {
-    if (this.storyline._untilDoneOrBlockedResolver) {
-      this._unblocked();
+    if (this.storyline._notifyIsBlocked) {
+      this._notify();
     }
   }
 
-  _unblocked() {
-    this.storyline._untilDoneOrBlockedResolver();
-    this.storyline._untilDoneOrBlockedResolver = null;
+  _notify() {
+    this.storyline._notifyIsBlocked();
+    this.storyline._notifyIsBlocked = null;
   }
 }
 
@@ -58,7 +58,7 @@ export default class StorylineRunner {
     this._pendingIOPromises = [];
     this._pendingActions = [];
     this._waitingFor = null;
-    this._untilDoneOrBlockedResolver = null;
+    this._notifyIsBlocked = null;
 
     const makeReducer = () => {
       if (reducers) {
@@ -108,8 +108,11 @@ export default class StorylineRunner {
 
   async _untilDoneOrBlocked() {
     if (this._pendingIO.length > 0 || this._pendingActions.length > 0) {
-      await new Promise((resolve, reject) => {
-        this._untilDoneOrBlockedResolver = resolve;
+      await new Promise((resolve) => {
+        this._notifyIsBlocked = () => {
+          this._notifyIsBlocked = null;
+          resolve();
+        };
       });
     }
   }
