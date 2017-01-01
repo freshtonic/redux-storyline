@@ -1,49 +1,46 @@
+import deepEqual from 'deep-equal';
 import {
   combineReducers as reduxCombineReducers,
   createStore,
   applyMiddleware
 } from 'redux';
 
-import deepEqual from 'deep-equal';
-
 export const IO = (fn, context, ...args) => ({ effect: 'IO', fn, context, args });
+
+const _storyline = Symbol("storyline");
+const _blocked   = Symbol("blocked");
 
 class StorylineAPI {
   constructor(storyline) {
-    this.storyline = storyline;
+    this[_storyline] = storyline;
   }
 
   async waitFor(predicateOrActionType) {
-    this._blocked();
-    await this.storyline._waitFor(predicateOrActionType);
+    this[_blocked]();
+    await this[_storyline]._waitFor(predicateOrActionType);
   }
 
   async performIO(fn, context, ...args) {
-    this._blocked();
+    this[_blocked]();
     const effect = IO(fn, context, ...args);
 
     const promise = new Promise((resolve, reject) => {
-      this.storyline._pendingIO.push({ effect, resolve });      
+      this[_storyline]._pendingIO.push({ effect, resolve });
     })
     
-    this.storyline._pendingIOPromises.push({ effect, promise });
+    this[_storyline]._pendingIOPromises.push({ effect, promise });
     
     return await promise;
   }
 
   async dispatch(action) {
-    await this.storyline.dispatch(action);
+    await this[_storyline].dispatch(action);
   }
 
-  _blocked() {
-    if (this.storyline._notifyIsBlocked) {
-      this._notify();
+  [_blocked]() {
+    if (this[_storyline]._notifyIsBlocked) {
+      this[_storyline]._notifyIsBlocked();
     }
-  }
-
-  _notify() {
-    this.storyline._notifyIsBlocked();
-    this.storyline._notifyIsBlocked = null;
   }
 }
 
