@@ -42,8 +42,10 @@ class StorylineAPI {
   }
 }
 
+const _start = Symbol("start");
+
 export default class StorylineRunner {
-  constructor({
+  constructor(storyline, {
     initialState = {},
     reducers,
     middlewares = [],
@@ -90,6 +92,8 @@ export default class StorylineRunner {
       initialState,
       applyMiddleware(...allMiddleware)
     );
+
+    this[_start](storyline);
   }
 
   getState() {
@@ -112,7 +116,7 @@ export default class StorylineRunner {
     }
   }
 
-  async start(storyline) {
+  async [_start](storyline) {
     await storyline(new StorylineAPI(this));
     this._done = true;
     this[_blocked]();

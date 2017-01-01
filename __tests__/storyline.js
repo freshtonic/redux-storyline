@@ -19,12 +19,12 @@ describe("storyline", () => {
   const initialState = { score: 0 };
 
   it('populates store with a given initial state', () => {
-    const runner = new StorylineRunner({initialState});
+    const runner = new StorylineRunner(() => {}, {initialState});
     expect(runner.getState()).toEqual(initialState);
   });
 
   it('uses the supplied reducers', async function() {
-    const runner = new StorylineRunner({reducers});
+    const runner = new StorylineRunner(() => {}, {reducers});
     await runner.dispatch({type: INCREMENT, amount: 3});
     await runner.dispatch({type: INCREMENT, amount: 5});
     expect(runner.getState()).toEqual({score: 8});
@@ -39,8 +39,7 @@ describe("storyline", () => {
       api.dispatch({ type: INCREMENT, amount });
     };
 
-    const runner = new StorylineRunner({reducers, initialState});
-    runner.start(storyline);
+    const runner = new StorylineRunner(storyline, {reducers, initialState});
 
     expect(runner.getState()).toEqual({ score: 0});
     expect(runner.pendingIO().length).toEqual(0); 
