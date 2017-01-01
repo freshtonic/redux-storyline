@@ -8,7 +8,7 @@ import deepEqual from 'deep-equal';
 
 export const IO = (fn, context, ...args) => ({ effect: 'IO', fn, context, args });
 
-class StorylineOperations {
+class StorylineAPI {
   constructor(storyline) {
     this.storyline = storyline;
   }
@@ -115,7 +115,7 @@ export default class StorylineRunner {
   }
 
   start(storyline) {
-    storyline(new StorylineOperations(this));
+    storyline(new StorylineAPI(this));
   }
 
   async _waitFor(predicateOrActionType) {
