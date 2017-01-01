@@ -19,15 +19,15 @@ describe("storyline", () => {
   const initialState = { score: 0 };
 
   it('populates store with a given initial state', () => {
-    const storyline = new StorylineRunner({initialState});
-    expect(storyline.getState()).toEqual(initialState);
+    const runner = new StorylineRunner({initialState});
+    expect(runner.getState()).toEqual(initialState);
   });
 
   it('uses the supplied reducers', async function() {
-    const storyline = new StorylineRunner({reducers});
-    await storyline.dispatch({type: INCREMENT, amount: 3});
-    await storyline.dispatch({type: INCREMENT, amount: 5});
-    expect(storyline.getState()).toEqual({score: 8});
+    const runner = new StorylineRunner({reducers});
+    await runner.dispatch({type: INCREMENT, amount: 3});
+    await runner.dispatch({type: INCREMENT, amount: 5});
+    expect(runner.getState()).toEqual({score: 8});
   });
 
   it('provides an API to resolve triggered effects', async function() {

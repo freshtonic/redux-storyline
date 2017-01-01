@@ -38,9 +38,7 @@ class StorylineAPI {
   }
 
   [_blocked]() {
-    if (this[_storyline]._notifyIsBlocked) {
-      this[_storyline]._notifyIsBlocked();
-    }
+    this[_storyline][_blocked]();
   }
 }
 
@@ -53,9 +51,9 @@ export default class StorylineRunner {
   }) {
     this._pendingIO = [];
     this._pendingIOPromises = [];
-    this._pendingActions = [];
     this._waitingFor = null;
     this._notifyIsBlocked = null;
+    this.done = false;
 
     const makeReducer = () => {
       if (reducers) {
@@ -104,7 +102,7 @@ export default class StorylineRunner {
   }
 
   async _untilDoneOrBlocked() {
-    if (this._pendingIO.length > 0 || this._pendingActions.length > 0) {
+    if (this._pendingIO.length > 0) {
       await new Promise((resolve) => {
         this._notifyIsBlocked = () => {
           this._notifyIsBlocked = null;
@@ -114,8 +112,10 @@ export default class StorylineRunner {
     }
   }
 
-  start(storyline) {
-    storyline(new StorylineAPI(this));
+  async start(storyline) {
+    await storyline(new StorylineAPI(this));
+    this._done = true;
+    this[_blocked]();
   }
 
   async _waitFor(predicateOrActionType) {
@@ -132,10 +132,6 @@ export default class StorylineRunner {
     return this._pendingIO.map(({effect}) => effect);
   }
 
-  pendingActions() {
-    return this._pendingActions.map(({action}) => action);
-  }
-
   async resolveIO(effect, value) {
     const found = this._pendingIO.find((candidate) => {
       return deepEqual(candidate.effect, effect, {strict: true});
@@ -149,6 +145,16 @@ export default class StorylineRunner {
       await this._untilDoneOrBlocked();
     } else {
       return Promise.reject("could not find IO to resolve");
+    }
+  }
+
+  isDone() {
+    return this._done;
+  }
+
+  [_blocked]() {
+    if (this._notifyIsBlocked) {
+      this._notifyIsBlocked();
     }
   }
 };
