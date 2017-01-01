@@ -146,7 +146,7 @@ export default class StorylineRunner {
       this._pendingIO.splice(index, 1);
       const doneIO = this._pendingIOPromises.splice(index, 1);
       await doneIO;
-      this._untilDoneOrBlocked();
+      await this._untilDoneOrBlocked();
     } else {
       return Promise.reject("could not find IO to resolve");
     }
