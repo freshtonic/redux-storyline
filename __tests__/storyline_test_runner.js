@@ -81,7 +81,8 @@ describe("StorylineTestRunner", () => {
       mobile: null,
       mobileSent: null,
       mobilePasscode: null,
-      mobileVerified: false
+      mobileVerified: false,
+      accountCreated: false
     };
 
     const reducers = {
@@ -99,6 +100,8 @@ describe("StorylineTestRunner", () => {
             return Object.assign({}, state, { mobileSent: action.mobile });
           case MOBILE_PASSCODE_SUBMITTED:
             return Object.assign({}, state, { mobilePasscode: action.passcode });
+          case ACCOUNT_CREATED:
+            return Object.assign({}, state, { accountCreated: true });
           default:
             return state;
         }
@@ -194,6 +197,7 @@ describe("StorylineTestRunner", () => {
 
       expect(runner.pendingIO()).toEqual([IO(createAccount, "some-uuid-1", "some-uuid-2")]);
       await runner.resolveIO(IO(createAccount, "some-uuid-1", "some-uuid-2"));
+      expect(runner.getState().signup.accountCreated).toBe(true);
     });
   });
 });
