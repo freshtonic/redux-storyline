@@ -5,44 +5,12 @@ import {
   applyMiddleware
 } from 'redux';
 
-export const IO = (fn, context, ...args) => ({ effect: 'IO', fn, context, args });
+import StorylineTestAPI from './storyline_test_api';
 
-const _storyline = Symbol("storyline");
-const _blocked   = Symbol("blocked");
-
-class StorylineAPI {
-  constructor(storyline) {
-    this[_storyline] = storyline;
-  }
-
-  async waitFor(predicateOrActionType) {
-    this[_blocked]();
-    await this[_storyline]._waitFor(predicateOrActionType);
-  }
-
-  async performIO(fn, context, ...args) {
-    this[_blocked]();
-    const effect = IO(fn, context, ...args);
-
-    const promise = new Promise((resolve, reject) => {
-      this[_storyline]._pendingIO.push({ effect, resolve });
-    })
-    
-    this[_storyline]._pendingIOPromises.push({ effect, promise });
-    
-    return await promise;
-  }
-
-  async dispatch(action) {
-    await this[_storyline].dispatch(action);
-  }
-
-  [_blocked]() {
-    this[_storyline][_blocked]();
-  }
-}
+export const IO = (fn, context, ...args) => ({ fn, context, args });
 
 const _start = Symbol("start");
+const _storyline = Symbol("storyline");
 
 export default class StorylineRunner {
   constructor(storyline, {
@@ -117,9 +85,9 @@ export default class StorylineRunner {
   }
 
   async [_start](storyline) {
-    await storyline(new StorylineAPI(this));
+    await storyline(new StorylineTestAPI(this));
     this._done = true;
-    this[_blocked]();
+    this._blocked();
   }
 
   async _waitFor(predicateOrActionType) {
@@ -133,12 +101,12 @@ export default class StorylineRunner {
   }
 
   pendingIO() {
-    return this._pendingIO.map(({effect}) => effect);
+    return this._pendingIO.map(({io}) => io);
   }
 
-  async resolveIO(effect, value) {
+  async resolveIO(io, value) {
     const found = this._pendingIO.find((candidate) => {
-      return deepEqual(candidate.effect, effect, {strict: true});
+      return deepEqual(candidate.io, io, {strict: true});
     });
     if (found) {
       found.resolve(value);
@@ -156,9 +124,10 @@ export default class StorylineRunner {
     return this._done;
   }
 
-  [_blocked]() {
+  _blocked() {
     if (this._notifyIsBlocked) {
       this._notifyIsBlocked();
     }
   }
 };
+

@@ -1,6 +1,6 @@
-import StorylineRunner, { IO } from '../src/storyline.js';
+import StorylineTestRunner, { IO } from '../src/storyline_test_runner';
 
-describe("storyline", () => {
+describe("StorylineTestRunner", () => {
 
   const BEGIN     = 'BEGIN';
   const INCREMENT = 'INC';
@@ -19,12 +19,12 @@ describe("storyline", () => {
   const initialState = { score: 0 };
 
   it('populates store with a given initial state', () => {
-    const runner = new StorylineRunner(() => {}, {initialState});
+    const runner = new StorylineTestRunner(() => {}, {initialState});
     expect(runner.getState()).toEqual(initialState);
   });
 
   it('uses the supplied reducers', async function() {
-    const runner = new StorylineRunner(() => {}, {reducers});
+    const runner = new StorylineTestRunner(() => {}, {reducers});
     await runner.dispatch({type: INCREMENT, amount: 3});
     await runner.dispatch({type: INCREMENT, amount: 5});
     expect(runner.getState()).toEqual({score: 8});
@@ -35,11 +35,11 @@ describe("storyline", () => {
 
     const storyline = async function(api) {
       await api.waitFor(BEGIN);
-      const amount = await api.performIO(askForAmount);
+      const amount = await api.performIO(IO(askForAmount));
       api.dispatch({ type: INCREMENT, amount });
     };
 
-    const runner = new StorylineRunner(storyline, {reducers, initialState});
+    const runner = new StorylineTestRunner(storyline, {reducers, initialState});
 
     expect(runner.getState()).toEqual({ score: 0});
     expect(runner.pendingIO().length).toEqual(0); 
