@@ -33,8 +33,12 @@ export default class StorylineTestAPI {
     return await promise;
   }
 
-  async dispatch(action) {
-    await this[runner].dispatch(action);
+  dispatch(action) {
+    this[runner].dispatch(action);
+  }
+
+  getState() {
+    return this[runner].getState();
   }
 
   [blocked]() {
