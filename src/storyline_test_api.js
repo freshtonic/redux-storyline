@@ -17,7 +17,7 @@ export default class StorylineTestAPI {
 
     const promise = new Promise((resolve, reject) => {
       this[_runner]._pendingIO.push({ io, resolve });
-    })
+    });
     
     this[_runner]._pendingIOPromises.push({ io, promise });
     
