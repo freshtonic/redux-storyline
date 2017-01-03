@@ -3,6 +3,8 @@ const _blocked     = Symbol("blocked");
 const _runner      = Symbol("runner");
 const _waitingFor  = Symbol("waitingFor");
 
+export const _onAction    = Symbol("onAction");
+
 export default class StorylineTestAPI {
   constructor(runner) {
     this[_runner] = runner;
@@ -39,7 +41,7 @@ export default class StorylineTestAPI {
     this[_runner]._blocked();
   }
 
-  _onAction(action) {
+  [_onAction](action) {
     if (this[_waitingFor]) {
       const { predicateFn, resolve } = this[_waitingFor];
       if (predicateFn(action)) {

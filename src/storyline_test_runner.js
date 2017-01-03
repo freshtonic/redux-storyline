@@ -5,7 +5,7 @@ import {
   applyMiddleware
 } from 'redux';
 
-import StorylineTestAPI from './storyline_test_api';
+import StorylineTestAPI, { _onAction } from './storyline_test_api';
 
 export const IO = (fn, context, ...args) => ({ fn, context, args });
 
@@ -42,7 +42,7 @@ export default class StorylineRunner {
 
     const storylineMiddleware = store => next => action => {
       const result = next(action);
-      this[_api]._onAction(action);
+      this[_api][_onAction](action);
       return result;
     };
 
