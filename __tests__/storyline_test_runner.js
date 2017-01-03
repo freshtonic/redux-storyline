@@ -57,19 +57,31 @@ describe("StorylineTestRunner", () => {
 
     const BEGIN_CREATE_ACCOUNT = 'signup/BEGIN_CREATE_ACCOUNT';
 
-    const EMAIL_SUBMITTED = 'signup/EMAIL_SUBMITTED';
-    const VALIDATE_EMAIL = 'signup/VALIDATE_EMAIL';
-    const EMAIL_PASSCODE_SENT = 'signup/EMAIL_PASSCODE_SENT';
-    const EMAIL_PASSCODE_SUBMITTED = 'signup/EMAIL_PASSCODE_SUBMITTED';
-    const EMAIL_PASSCODE_MATCHED = 'signup/EMAIL_PASSCODE_MATCHED';
+    const EMAIL_SUBMITTED           = 'signup/EMAIL_SUBMITTED';
+    const VALIDATE_EMAIL            = 'signup/VALIDATE_EMAIL';
+    const EMAIL_PASSCODE_SENT       = 'signup/EMAIL_PASSCODE_SENT';
+    const EMAIL_PASSCODE_SUBMITTED  = 'signup/EMAIL_PASSCODE_SUBMITTED';
+    const EMAIL_PASSCODE_MATCHED    = 'signup/EMAIL_PASSCODE_MATCHED';
+    const SET_EMAIL_ERROR           = 'signup/SET_EMAIL_ERROR';
 
-    const ACCOUNT_CREATED = 'signup/ACCOUNT_CREATED';
+    const MOBILE_SUBMITTED          = 'signup/MOBILE_SUBMITTED';
+    const VALIDATE_MOBILE           = 'signup/VALIDATE_MOBILE';
+    const MOBILE_PASSCODE_SENT      = 'signup/MOBILE_PASSCODE_SENT';
+    const MOBILE_PASSCODE_SUBMITTED = 'signup/MOBILE_PASSCODE_SUBMITTED';
+    const MOBILE_PASSCODE_MATCHED   = 'signup/MOBILE_PASSCODE_MATCHED';
+    const SET_MOBILE_ERROR          = 'signup/SET_MOBILE_ERROR';
+
+    const ACCOUNT_CREATED           = 'signup/ACCOUNT_CREATED';
 
     const initialState = {
       email: null,
       emailSent: null,
       emailPasscode: null,
-      emailVerified: false
+      emailVerified: false,
+      mobile: null,
+      mobileSent: null,
+      mobilePasscode: null,
+      mobileVerified: false
     };
 
     const reducers = {
@@ -81,14 +93,23 @@ describe("StorylineTestRunner", () => {
             return Object.assign({}, state, { emailSent: action.email });
           case EMAIL_PASSCODE_SUBMITTED:
             return Object.assign({}, state, { emailPasscode: action.passcode });
+          case MOBILE_SUBMITTED:
+            return Object.assign({}, state, { mobile: action.mobile });
+          case MOBILE_PASSCODE_SENT:
+            return Object.assign({}, state, { mobileSent: action.mobile });
+          case MOBILE_PASSCODE_SUBMITTED:
+            return Object.assign({}, state, { mobilePasscode: action.passcode });
           default:
             return state;
         }
       }
     };
 
-    const sendEmailPasscode = () => {};
-    const verifyEmail = () => {};
+    const sendEmailPasscode   = () => {};
+    const verifyEmail         = () => {};
+    const sendMobilePasscode  = () => {};
+    const verifyMobile        = () => {};
+    const createAccount       = () => {};
 
     it('can run a 2FA signup process', async function() {
 
@@ -100,16 +121,14 @@ describe("StorylineTestRunner", () => {
             await api.performIO(IO(sendEmailPasscode, email));
             api.dispatch({ type: EMAIL_PASSCODE_SENT, email });
             await api.waitFor(EMAIL_PASSCODE_SUBMITTED);
-
             const passcodeEnteredByUser = api.getState().signup.emailPasscode;
             const verificationId = await api.performIO(IO(verifyEmail, passcodeEnteredByUser));
-
             if (verificationId) {
               api.dispatch({ type: EMAIL_PASSCODE_MATCHED });
               return verificationId;
             }
           } else {
-            await api.dispatch({
+            api.dispatch({
               type: SET_EMAIL_ERROR,
               error: "email addresses should contain a '@' character"
             });
@@ -119,43 +138,62 @@ describe("StorylineTestRunner", () => {
       };
 
       const captureVerifiedMobile = async function(api) {
-        return true;
-      };
-
-      const createAccount = async function(api, email, mobile) {
-        return true;
+        while (true) {
+          await api.waitFor(MOBILE_SUBMITTED);
+          const mobile = api.getState().signup.mobile;
+          if (mobile && mobile.match(/^[0-9\s]+$/)) {
+            await api.performIO(IO(sendMobilePasscode, mobile));
+            api.dispatch({ type: MOBILE_PASSCODE_SENT, mobile });
+            await api.waitFor(MOBILE_PASSCODE_SUBMITTED);
+            const passcodeEnteredByUser = api.getState().signup.mobilePasscode;
+            const verificationId = await api.performIO(IO(verifyMobile, passcodeEnteredByUser));
+            if (verificationId) {
+              api.dispatch({ type: MOBILE_PASSCODE_MATCHED });
+              return verificationId;
+            }
+          } else {
+            api.dispatch({
+              type: SET_MOBILE_ERROR,
+              error: "mobile number should only contain digits and whitespace"
+            });
+          }
+          continue;
+        }
       };
 
       const signupStoryline = async function(api) {
         await api.waitFor(BEGIN_CREATE_ACCOUNT);
         const verifiedEmailId = await captureVerifiedEmail(api);
         const verifiedMobileId = await captureVerifiedMobile(api);
-        await createAccount(api, verifiedEmailId, verifiedMobileId);
+        await api.performIO(IO(createAccount, verifiedEmailId, verifiedMobileId));
         await api.dispatch({ type: ACCOUNT_CREATED });
       };
 
       const runner = new StorylineTestRunner(signupStoryline, {reducers});
 
-      expect(runner.getState()).toEqual({signup: initialState});
-
       await runner.dispatch({ type: BEGIN_CREATE_ACCOUNT });
+
       await runner.dispatch({ type: EMAIL_SUBMITTED, email: "foo@bar.com" });
-
       expect(runner.pendingIO()).toEqual([IO(sendEmailPasscode, "foo@bar.com")]);
-
       await runner.resolveIO(IO(sendEmailPasscode, "foo@bar.com"));
-
-      expect(runner.getState()).toEqual({signup: Object.assign({}, initialState, {
-        email: "foo@bar.com",
-        emailSent: "foo@bar.com"
-      })});
-
+      expect(runner.getState().signup.email).toEqual("foo@bar.com");
+      expect(runner.getState().signup.emailSent).toEqual("foo@bar.com");
       await runner.dispatch({ type: EMAIL_PASSCODE_SUBMITTED, passcode: "123456" });
-
       expect(runner.pendingIO()).toEqual([IO(verifyEmail, "123456")]);
+      await runner.resolveIO(IO(verifyEmail, "123456"), "some-uuid-1");
 
-      await runner.resolveIO(IO(verifyEmail, "123456"), "some-uuid");
 
+      await runner.dispatch({ type: MOBILE_SUBMITTED, mobile: "0123 456789" });
+      expect(runner.pendingIO()).toEqual([IO(sendMobilePasscode, "0123 456789")]);
+      await runner.resolveIO(IO(sendMobilePasscode, "0123 456789"));
+      expect(runner.getState().signup.mobile).toEqual("0123 456789");
+      expect(runner.getState().signup.mobileSent).toEqual("0123 456789");
+      await runner.dispatch({ type: MOBILE_PASSCODE_SUBMITTED, passcode: "123456" });
+      expect(runner.pendingIO()).toEqual([IO(verifyMobile, "123456")]);
+      await runner.resolveIO(IO(verifyMobile, "123456"), "some-uuid-2");
+
+      expect(runner.pendingIO()).toEqual([IO(createAccount, "some-uuid-1", "some-uuid-2")]);
+      await runner.resolveIO(IO(createAccount, "some-uuid-1", "some-uuid-2"));
     });
   });
 });

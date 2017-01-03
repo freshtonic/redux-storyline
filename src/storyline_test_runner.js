@@ -15,7 +15,7 @@ const api                = Symbol("api");
 const done               = Symbol("done");
 const store              = Symbol("store");
 
-export const IO = (fn, context, ...args) => ({ fn, context, args });
+export const IO = (fn, ...args) => ({ fn, args });
 
 export default class StorylineRunner {
 
