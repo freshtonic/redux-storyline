@@ -87,7 +87,6 @@ export default class StorylineRunner {
   async [_start](storyline) {
     await storyline(new StorylineTestAPI(this));
     this._done = true;
-    this._blocked();
   }
 
   async _waitFor(predicateOrActionType) {
