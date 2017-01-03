@@ -9,8 +9,9 @@ import StorylineTestAPI from './storyline_test_api';
 
 export const IO = (fn, context, ...args) => ({ fn, context, args });
 
-const _start = Symbol("start");
-const _storyline = Symbol("storyline");
+const _start      = Symbol("start");
+const _storyline  = Symbol("storyline");
+const _api        = Symbol("api");
 
 export default class StorylineRunner {
   constructor(storyline, {
@@ -21,8 +22,8 @@ export default class StorylineRunner {
   }) {
     this._pendingIO = [];
     this._pendingIOPromises = [];
-    this._waitingFor = null;
     this._notifyIsBlocked = null;
+    this[_api] = null;
     this.done = false;
 
     const makeReducer = () => {
@@ -41,15 +42,7 @@ export default class StorylineRunner {
 
     const storylineMiddleware = store => next => action => {
       const result = next(action);
-      
-      if (this._waitingFor) {
-        const { predicateFn, resolve } = this._waitingFor;
-        if (predicateFn(action)) {
-          resolve();
-          this._waitingFor = null;
-        }
-      }
-
+      this[_api]._onAction(action);
       return result;
     };
 
@@ -85,18 +78,9 @@ export default class StorylineRunner {
   }
 
   async [_start](storyline) {
-    await storyline(new StorylineTestAPI(this));
+    this[_api] = new StorylineTestAPI(this);
+    await storyline(this[_api]);
     this._done = true;
-  }
-
-  async _waitFor(predicateOrActionType) {
-    const predicateFn = typeof predicateOrActionType === 'string' ?
-      (action) => action.type === predicateOrActionType
-    : (action) => predicateOrActionType(action);
-
-    return await new Promise((resolve, reject) => {
-      this._waitingFor = {predicateFn, resolve};
-    });
   }
 
   pendingIO() {

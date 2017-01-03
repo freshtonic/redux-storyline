@@ -1,6 +1,7 @@
 
-const _blocked = Symbol("blocked");
-const _runner  = Symbol("runner");
+const _blocked     = Symbol("blocked");
+const _runner      = Symbol("runner");
+const _waitingFor  = Symbol("waitingFor");
 
 export default class StorylineTestAPI {
   constructor(runner) {
@@ -9,7 +10,13 @@ export default class StorylineTestAPI {
 
   async waitFor(predicateOrActionType) {
     this[_blocked]();
-    await this[_runner]._waitFor(predicateOrActionType);
+    const predicateFn = typeof predicateOrActionType === 'string' ?
+      (action) => action.type === predicateOrActionType
+    : (action) => predicateOrActionType(action);
+
+    return await new Promise((resolve, reject) => {
+      this[_waitingFor] = {predicateFn, resolve};
+    });
   }
 
   async performIO(io) {
@@ -30,6 +37,16 @@ export default class StorylineTestAPI {
 
   [_blocked]() {
     this[_runner]._blocked();
+  }
+
+  _onAction(action) {
+    if (this[_waitingFor]) {
+      const { predicateFn, resolve } = this[_waitingFor];
+      if (predicateFn(action)) {
+        resolve();
+        this[_waitingFor] = null;
+      }
+    }
   }
 }
 
