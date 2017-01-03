@@ -1,52 +1,51 @@
 
-const _blocked     = Symbol("blocked");
-const _runner      = Symbol("runner");
-const _waitingFor  = Symbol("waitingFor");
+const runner      = Symbol("runner");
+const waitingFor  = Symbol("waitingFor");
 
-export const _onAction    = Symbol("onAction");
+import { onAction, blocked, pendingIO, pendingIOPromises } from './symbols';
 
 export default class StorylineTestAPI {
-  constructor(runner) {
-    this[_runner] = runner;
+  constructor(storylineTestRunner) {
+    this[runner] = storylineTestRunner;
   }
 
   async waitFor(predicateOrActionType) {
-    this[_blocked]();
+    this[blocked]();
     const predicateFn = typeof predicateOrActionType === 'string' ?
       (action) => action.type === predicateOrActionType
     : (action) => predicateOrActionType(action);
 
     return await new Promise((resolve, reject) => {
-      this[_waitingFor] = {predicateFn, resolve};
+      this[waitingFor] = {predicateFn, resolve};
     });
   }
 
   async performIO(io) {
-    this[_blocked]();
+    this[blocked]();
 
     const promise = new Promise((resolve, reject) => {
-      this[_runner]._pendingIO.push({ io, resolve });
+      this[runner][pendingIO].push({ io, resolve });
     });
     
-    this[_runner]._pendingIOPromises.push({ io, promise });
+    this[runner][pendingIOPromises].push({ io, promise });
     
     return await promise;
   }
 
   async dispatch(action) {
-    await this[_runner].dispatch(action);
+    await this[runner].dispatch(action);
   }
 
-  [_blocked]() {
-    this[_runner]._blocked();
+  [blocked]() {
+    this[runner][blocked]();
   }
 
-  [_onAction](action) {
-    if (this[_waitingFor]) {
-      const { predicateFn, resolve } = this[_waitingFor];
+  [onAction](action) {
+    if (this[waitingFor]) {
+      const { predicateFn, resolve } = this[waitingFor];
       if (predicateFn(action)) {
         resolve();
-        this[_waitingFor] = null;
+        this[waitingFor] = null;
       }
     }
   }

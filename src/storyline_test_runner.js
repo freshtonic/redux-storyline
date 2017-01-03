@@ -5,26 +5,33 @@ import {
   applyMiddleware
 } from 'redux';
 
-import StorylineTestAPI, { _onAction } from './storyline_test_api';
+import StorylineTestAPI from './storyline_test_api';
+import { onAction, blocked, pendingIO, pendingIOPromises } from './symbols';
 
 export const IO = (fn, context, ...args) => ({ fn, context, args });
 
-const _start      = Symbol("start");
-const _storyline  = Symbol("storyline");
-const _api        = Symbol("api");
+const notifyIsBlocked    = Symbol("notifyIsBlocked");
+const untilDoneOrBlocked = Symbol("untilDoneOrBlocked");
+const start              = Symbol("start");
+const api                = Symbol("api");
+const done               = Symbol("done");
+const store              = Symbol("store");
 
 export default class StorylineRunner {
+
   constructor(storyline, {
     initialState = {},
     reducers,
     middlewares = [],
     combineReducers = reduxCombineReducers
   }) {
-    this._pendingIO = [];
-    this._pendingIOPromises = [];
-    this._notifyIsBlocked = null;
-    this[_api] = null;
-    this.done = false;
+
+    this[pendingIO]         = [];
+    this[pendingIOPromises] = [];
+    this[notifyIsBlocked]   = null;
+    this[api]               = null;
+    this[done]              = false;
+    this[store]             = null;
 
     const makeReducer = () => {
       if (reducers) {
@@ -42,75 +49,77 @@ export default class StorylineRunner {
 
     const storylineMiddleware = store => next => action => {
       const result = next(action);
-      this[_api][_onAction](action);
+      this[api][onAction](action);
       return result;
     };
 
     const allMiddleware = [...middlewares, storylineMiddleware];
 
-    this.store = createStore(
+    this[store] = createStore(
       finalReducer,
       initialState,
       applyMiddleware(...allMiddleware)
     );
 
-    this[_start](storyline);
+    this[start](storyline);
   }
 
   getState() {
-    return this.store.getState();
-  }
-
-  async dispatch(action) {
-    await this.store.dispatch(action);
-    await this._untilDoneOrBlocked();
-  }
-
-  async _untilDoneOrBlocked() {
-    if (this._pendingIO.length > 0) {
-      await new Promise((resolve) => {
-        this._notifyIsBlocked = () => {
-          this._notifyIsBlocked = null;
-          resolve();
-        };
-      });
-    }
-  }
-
-  async [_start](storyline) {
-    this[_api] = new StorylineTestAPI(this);
-    await storyline(this[_api]);
-    this._done = true;
+    return this[store].getState();
   }
 
   pendingIO() {
-    return this._pendingIO.map(({io}) => io);
+    return this[pendingIO].map(({io}) => io);
   }
 
+  async dispatch(action) {
+    await this[store].dispatch(action);
+    await this[untilDoneOrBlocked]();
+  }
+
+  async [start](storyline) {
+    this[api] = new StorylineTestAPI(this);
+    await storyline(this[api]);
+    this[done] = true;
+  }
+
+
   async resolveIO(io, value) {
-    const found = this._pendingIO.find((candidate) => {
+    const found = this[pendingIO].find((candidate) => {
       return deepEqual(candidate.io, io, {strict: true});
     });
     if (found) {
       found.resolve(value);
-      const index =this._pendingIO.indexOf(found);
-      this._pendingIO.splice(index, 1);
-      const doneIO = this._pendingIOPromises.splice(index, 1);
+      const index = this[pendingIO].indexOf(found);
+      this[pendingIO].splice(index, 1);
+      const doneIO = this[pendingIOPromises].splice(index, 1);
       await doneIO;
-      await this._untilDoneOrBlocked();
+      await this[untilDoneOrBlocked]();
     } else {
       return Promise.reject("could not find IO to resolve");
     }
   }
 
   isDone() {
-    return this._done;
+    return this[done];
   }
 
-  _blocked() {
-    if (this._notifyIsBlocked) {
-      this._notifyIsBlocked();
+  [blocked]() {
+    if (this[notifyIsBlocked]) {
+      this[notifyIsBlocked]();
     }
   }
+
+  async [untilDoneOrBlocked]() {
+    if (this[pendingIO].length > 0) {
+      await new Promise((resolve) => {
+        this[notifyIsBlocked] = () => {
+          this[notifyIsBlocked] = null;
+          resolve();
+        };
+      });
+    }
+  }
+
 };
 
