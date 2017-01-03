@@ -114,64 +114,63 @@ describe("StorylineTestRunner", () => {
     const verifyMobile        = () => {};
     const createAccount       = () => {};
 
+    const captureVerifiedEmail = async function(api) {
+      while (true) {
+        await api.waitFor(EMAIL_SUBMITTED);
+        const email = api.getState().signup.email;
+        if (email && email.match(/@/)) {
+          await api.performIO(IO(sendEmailPasscode, email));
+          api.dispatch({ type: EMAIL_PASSCODE_SENT, email });
+          await api.waitFor(EMAIL_PASSCODE_SUBMITTED);
+          const passcodeEnteredByUser = api.getState().signup.emailPasscode;
+          const verificationId = await api.performIO(IO(verifyEmail, passcodeEnteredByUser));
+          if (verificationId) {
+            api.dispatch({ type: EMAIL_PASSCODE_MATCHED });
+            return verificationId;
+          }
+        } else {
+          api.dispatch({
+            type: SET_EMAIL_ERROR,
+            error: "email addresses should contain a '@' character"
+          });
+        }
+        continue;
+      }
+    };
+
+    const captureVerifiedMobile = async function(api) {
+      while (true) {
+        await api.waitFor(MOBILE_SUBMITTED);
+        const mobile = api.getState().signup.mobile;
+        if (mobile && mobile.match(/^[0-9\s]+$/)) {
+          await api.performIO(IO(sendMobilePasscode, mobile));
+          api.dispatch({ type: MOBILE_PASSCODE_SENT, mobile });
+          await api.waitFor(MOBILE_PASSCODE_SUBMITTED);
+          const passcodeEnteredByUser = api.getState().signup.mobilePasscode;
+          const verificationId = await api.performIO(IO(verifyMobile, passcodeEnteredByUser));
+          if (verificationId) {
+            api.dispatch({ type: MOBILE_PASSCODE_MATCHED });
+            return verificationId;
+          }
+        } else {
+          api.dispatch({
+            type: SET_MOBILE_ERROR,
+            error: "mobile number should only contain digits and whitespace"
+          });
+        }
+        continue;
+      }
+    };
+
+    const signupStoryline = async function(api) {
+      await api.waitFor(BEGIN_CREATE_ACCOUNT);
+      const verifiedEmailId = await captureVerifiedEmail(api);
+      const verifiedMobileId = await captureVerifiedMobile(api);
+      await api.performIO(IO(createAccount, verifiedEmailId, verifiedMobileId));
+      await api.dispatch({ type: ACCOUNT_CREATED });
+    };
+
     it('can run a 2FA signup process', async function() {
-
-      const captureVerifiedEmail = async function(api) {
-        while (true) {
-          await api.waitFor(EMAIL_SUBMITTED);
-          const email = api.getState().signup.email;
-          if (email && email.match(/@/)) {
-            await api.performIO(IO(sendEmailPasscode, email));
-            api.dispatch({ type: EMAIL_PASSCODE_SENT, email });
-            await api.waitFor(EMAIL_PASSCODE_SUBMITTED);
-            const passcodeEnteredByUser = api.getState().signup.emailPasscode;
-            const verificationId = await api.performIO(IO(verifyEmail, passcodeEnteredByUser));
-            if (verificationId) {
-              api.dispatch({ type: EMAIL_PASSCODE_MATCHED });
-              return verificationId;
-            }
-          } else {
-            api.dispatch({
-              type: SET_EMAIL_ERROR,
-              error: "email addresses should contain a '@' character"
-            });
-          }
-          continue;
-        }
-      };
-
-      const captureVerifiedMobile = async function(api) {
-        while (true) {
-          await api.waitFor(MOBILE_SUBMITTED);
-          const mobile = api.getState().signup.mobile;
-          if (mobile && mobile.match(/^[0-9\s]+$/)) {
-            await api.performIO(IO(sendMobilePasscode, mobile));
-            api.dispatch({ type: MOBILE_PASSCODE_SENT, mobile });
-            await api.waitFor(MOBILE_PASSCODE_SUBMITTED);
-            const passcodeEnteredByUser = api.getState().signup.mobilePasscode;
-            const verificationId = await api.performIO(IO(verifyMobile, passcodeEnteredByUser));
-            if (verificationId) {
-              api.dispatch({ type: MOBILE_PASSCODE_MATCHED });
-              return verificationId;
-            }
-          } else {
-            api.dispatch({
-              type: SET_MOBILE_ERROR,
-              error: "mobile number should only contain digits and whitespace"
-            });
-          }
-          continue;
-        }
-      };
-
-      const signupStoryline = async function(api) {
-        await api.waitFor(BEGIN_CREATE_ACCOUNT);
-        const verifiedEmailId = await captureVerifiedEmail(api);
-        const verifiedMobileId = await captureVerifiedMobile(api);
-        await api.performIO(IO(createAccount, verifiedEmailId, verifiedMobileId));
-        await api.dispatch({ type: ACCOUNT_CREATED });
-      };
-
       const runner = new StorylineTestRunner(signupStoryline, {reducers});
 
       await runner.dispatch({ type: BEGIN_CREATE_ACCOUNT });
