@@ -1,8 +1,9 @@
 
 const runner      = Symbol("runner");
 const waitingFor  = Symbol("waitingFor");
+const blocked     = Symbol("blocked");
 
-import { onAction, blocked, pendingIO, pendingIOPromises } from './symbols';
+import { onAction, pendingIO, pendingIOPromises, notifyIsBlocked } from './symbols';
 
 export default class StorylineTestAPI {
   constructor(storylineTestRunner) {
@@ -37,7 +38,9 @@ export default class StorylineTestAPI {
   }
 
   [blocked]() {
-    this[runner][blocked]();
+    if (this[runner][notifyIsBlocked]) {
+      this[runner][notifyIsBlocked]();
+    }
   }
 
   [onAction](action) {

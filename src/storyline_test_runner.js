@@ -6,16 +6,16 @@ import {
 } from 'redux';
 
 import StorylineTestAPI from './storyline_test_api';
-import { onAction, blocked, pendingIO, pendingIOPromises } from './symbols';
 
-export const IO = (fn, context, ...args) => ({ fn, context, args });
+import { onAction, pendingIO, pendingIOPromises, notifyIsBlocked } from './symbols';
 
-const notifyIsBlocked    = Symbol("notifyIsBlocked");
 const untilDoneOrBlocked = Symbol("untilDoneOrBlocked");
 const start              = Symbol("start");
 const api                = Symbol("api");
 const done               = Symbol("done");
 const store              = Symbol("store");
+
+export const IO = (fn, context, ...args) => ({ fn, context, args });
 
 export default class StorylineRunner {
 
@@ -104,22 +104,17 @@ export default class StorylineRunner {
     return this[done];
   }
 
-  [blocked]() {
-    if (this[notifyIsBlocked]) {
-      this[notifyIsBlocked]();
-    }
-  }
-
   async [untilDoneOrBlocked]() {
-    if (this[pendingIO].length > 0) {
-      await new Promise((resolve) => {
+    return await new Promise((resolve) => {
+      if (this[pendingIO].length > 0) {
         this[notifyIsBlocked] = () => {
           this[notifyIsBlocked] = null;
           resolve();
         };
-      });
-    }
+      } else {
+        resolve();
+      }
+    });
   }
-
 };
 
